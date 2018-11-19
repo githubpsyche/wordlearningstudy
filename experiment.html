@@ -1,0 +1,261 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Word Learning Study</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="/study_assets/wordlearning1/jspsych-5.0/jspsych.js"></script>
+    <script src="/study_assets/wordlearning1/jspsych-5.0/plugins/jspsych-text.js"></script>
+    <script src="/study_assets/wordlearning1/jspsych-5.0/plugins/jspsych-survey-multi-choice.js"></script>
+    <script src="/study_assets/wordlearning1/jspsych-5.0/plugins/jspsych-survey-text.js"></script>
+    <script src="/study_assets/wordlearning1/jspsych-5.0/plugins/jspsych-word-referent.js"></script>
+    <script src="/study_assets/wordlearning1/jspsych-5.0/plugins/jspsych-survey-likert.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+    <script src="/assets/javascripts/jatos.js"></script>
+    <link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/black-tie/jquery-ui.min.css" rel="stylesheet" type="text/css"></link>
+    <link href="/study_assets/wordlearning1/jspsych-5.0/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+  </head>
+  <body>
+  </body>
+  <script>
+    // shuffle function
+    function shuffle(o){
+        for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+        return o;
+    }
+    
+    // set up the experiment timeline
+    var timeline = [];
+    var cond = "Seq01Test11";
+    
+    // Let's generate/index the stimulus pool.
+    var wordlist = ['bosa', 'manu', 'stigson', 'regli', 'flib', 'habble', 'gazo', 'smick', 'zud', 'goston', 'frair', 'leckid', 'roit', 'tatta', 'drut', 'hollet'];
+    var reflist = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9','10','11','12','13','14','15', '16', '17', '18', '19', '20', '21', '22', '23']; //, '24', '25'];
+    pairedcount = 7;
+    for (i = 0; i < reflist.length; i++) { reflist[i] = '/study_assets/wordlearning1/img/' + reflist[i] + '.bmp'; }
+    reflist = shuffle(reflist);
+    wordlist = shuffle(wordlist);
+    
+    // special stuff for special condition
+    var mixed = shuffle(reflist.slice(16, 24));
+    var mixedlist = reflist.slice(0, 16);
+    mixedlist = mixedlist.concat(mixed);
+  
+    // function for producing instructions trials
+    function ins(text) {
+      return {type: 'text', cont_key: 'mouse', text: text};
+    }
+    
+    // function for producing primary word learning trials
+    function seq0(blocknumber, isTest) {
+      var trials = [];
+      
+      // scan through each word
+      for (var i = 0; i < 16; i++) {
+        // for each word,
+        // make a shuffled pool of referents to pull from when creating trials
+        // replace actual referent in pool with reflist.length-1 so no repeats will occur
+        // if i > 7, then that's all refpool is. Otherwise, same has to be done to the extra referent.
+        var refpool;
+        if (i > pairedcount) {
+          refpool = (function(a,b){while(a--)b[a]=a;return b;})(reflist.length-1,[]); // makes array from 1 to reflist.length-1
+          for (j=0; j<refpool.length;j++) { if (refpool[j] == i) {refpool[j] = reflist.length-1;} } // replaces primary referent with removed last reflist value
+        } else {
+          refpool = (function(a,b){while(a--)b[a]=a;return b;})(reflist.length-2,[]);  // makes array from 1 to reflist.length-2
+          for (j=0; j<refpool.length;j++) { if (refpool[j] == i) {refpool[j] = reflist.length-1;} } // replaces primary referent with removed last reflist value
+          for (j=0; j<refpool.length;j++) { if (refpool[j] == i+16) {refpool[j] = reflist.length-2;} } // replaces secondary referent with removed last reflist value
+        }
+        refpool = shuffle(refpool);
+        
+        // make refpool indices point to shuffled sources (the actual image file locations)
+        for (j=0;j<refpool.length;j++) {
+          refpool[j] = reflist[refpool[j]];
+        }
+        
+        // vectorize trials
+        var referent = [reflist[i]];
+        if (i > pairedcount) {
+          // five trials, each concatenating the primary referent with 5 items from refpool
+          trials.push(shuffle([
+            shuffle(referent.concat(refpool.slice(0, 3))),
+            shuffle(referent.concat(refpool.slice(3, 6))),
+            shuffle(referent.concat(refpool.slice(6, 9))),
+            shuffle(referent.concat(refpool.slice(9, 12))),
+            shuffle(referent.concat(refpool.slice(12, 15))),
+          ]));
+        } else {
+          // two trials, each concatenating the primary referent with 5 items from refpool
+          // and three more trials, each concatenating the primary referent, the secondary referent, and 4 items from refpool
+          var refextra = referent.concat(reflist[i+16]);
+          trials.push(shuffle([
+              shuffle(referent.concat(refpool.slice(0, 3))),
+              shuffle(referent.concat(refpool.slice(3, 6))),
+              shuffle(refextra.concat(refpool.slice(6, 8))),
+              shuffle(refextra.concat(refpool.slice(8, 10))),
+              shuffle(refextra.concat(refpool.slice(10, 12))),
+            ]));
+        }
+      }
+      
+      // now put everything into plugins
+      var block = [];
+      // ordered so each word is presented for a first time before any word is presented a second time, and so on
+      for (i=0;i<5;i++) {
+        var order = shuffle((function(a,b){while(a--)b[a]=a;return b;})(16,[]));
+        for (j=0;j<16;j++) {
+          if (order[j] > pairedcount) {
+            block.push({
+              word: wordlist[order[j]],
+              stimuli: trials[order[j]][i],
+              is_test: isTest,
+              block: blocknumber,
+              condition: cond,
+              primary: reflist[order[j]],
+              secondary: 'N/A'
+            });
+          } else {
+            block.push({
+              word: wordlist[order[j]],
+              stimuli: trials[order[j]][i],
+              is_test: isTest,
+              block: blocknumber,
+              condition: cond,
+              primary: reflist[order[j]],
+              secondary: reflist[order[j]+16]
+            });
+          }
+        }
+      }
+      return {type: 'word-referent', timeline: block};
+    }
+    
+    // function for producing secondary word learning trials
+    function seq1(blocknumber, isTest) {
+      var trials = [];
+      // for special condition, mix up the latter part of reflist temporarily, changing it back at the end of this trial
+      
+      // scan through each word
+      for (var i = 0; i < 16; i++) {
+        var refpool;
+        if (i > pairedcount) {
+          refpool = (function(a,b){while(a--)b[a]=a;return b;})(mixedlist.length-1,[]); // makes array from 1 to reflist.length-1
+          for (j=0; j<refpool.length;j++) { if (refpool[j] == i) {refpool[j] = mixedlist.length-1;} } // replaces primary referent with removed last reflist value
+        } else {
+          refpool = (function(a,b){while(a--)b[a]=a;return b;})(mixedlist.length-1,[]); // makes array from 1 to reflist.length-1
+          for (j=0; j<refpool.length;j++) { if (refpool[j] == i+16) {refpool[j] = mixedlist.length-1;} } // replaces secondary referent with removed last reflist value
+        }
+        refpool = shuffle(refpool);
+        
+        // make refpool indices point to shuffled sources (the actual image file locations)
+        for (j=0;j<refpool.length;j++) {
+          refpool[j] = mixedlist[refpool[j]];
+        }
+        
+        // vectorize trials
+        var referent;
+        if (i > pairedcount) {
+          referent = [mixedlist[i]];
+          trials.push(shuffle([
+            shuffle(referent.concat(refpool.slice(0, 3))),
+            shuffle(referent.concat(refpool.slice(3, 6))),
+            shuffle(referent.concat(refpool.slice(6, 9))),
+            shuffle(referent.concat(refpool.slice(9, 12))),
+            shuffle(referent.concat(refpool.slice(12, 15))),
+          ]));
+        } else {
+          referent = [mixedlist[i+16]];
+          trials.push(shuffle([
+            shuffle(referent.concat(refpool.slice(0, 3))),
+            shuffle(referent.concat(refpool.slice(3, 6))),
+            shuffle(referent.concat(refpool.slice(6, 9))),
+            shuffle(referent.concat(refpool.slice(9, 12))),
+            shuffle(referent.concat(refpool.slice(12, 15))),
+            ]));
+        }
+      }
+      
+      // now put everything into plugins
+      var block = [];
+      // ordered so each word is presented for a first time before any word is presented a second time, and so on
+      for (i=0;i<5;i++) {
+        var order = shuffle((function(a,b){while(a--)b[a]=a;return b;})(16,[]));
+        for (j=0;j<16;j++) {
+          if (order[j] > pairedcount) {
+            block.push({
+              word: wordlist[order[j]],
+              stimuli: trials[order[j]][i],
+              is_test: isTest,
+              block: blocknumber,
+              condition: cond,
+              primary: mixedlist[order[j]],
+              secondary: 'N/A'
+            });
+          } else {
+            block.push({
+              word: wordlist[order[j]],
+              stimuli: trials[order[j]][i],
+              is_test: isTest,
+              block: blocknumber,
+              condition: cond,
+              primary: mixedlist[order[j]],
+              secondary: mixedlist[order[j]+16]
+            });
+          }
+        }
+      }
+      
+      // not this
+      return {type: 'word-referent', timeline: block};
+    }
+    
+    // starts with the consent form (formatted text, consent or no?, required)
+    var consent = {
+      type: 'survey-multi-choice',
+      questions: [''],
+      options: [["I agree to participate in this study.", "I DO NOT agree to participate in this study"]],
+      required: [true],
+      horizontal: false,
+      preamble: '<br><div><div><p> <strong>Please read this consent form carefully before deciding whether you would like to participate in this study.</strong></p><p><span ><u><br></u><i/span></p><p><span ><u>Purpose of the Study:</u>&nbsp; Y</span><span >ou have been asked to perform in a study to learn more about how people learn new words <br></span></p><p><span ><br></span></p><p><span ><u>What you will do in this study:</u> During this study you will </span>guess the meanings of words in ambiguous contexts.</p> <p>&nbsp;</p> <p><span ><u>Time Required:</u> The study will take up to 30 minutes to complete.</span></p> <p>&nbsp;</p> <p><span ><u>Risks &amp; Benefits:</u> There are no anticipated risks associated with being in this study.</span><span  arial, helvetica, sans-serif;"> At the end of the study, we can provide a thorough explanation of the study and of our hypotheses.</span></p> <p>&nbsp;</p> <p><span ><u>Compensation:</u> You will receive </span><span >$3.00&nbsp;</span> for completing this experiment, which will be awarded through your Amazon Mechanical Turk account. If you perform in the top half of participants during the latter two blocks of the experiment, you will be rewarded an additional $1. </p> <p>&nbsp;</p> <p><u>Confidentiality:</u>&nbsp;Your name will be stored separately from any data regarding your responses. Your participation in this study will remain confidential, although the data will be stored for several years and may be used for a variety of research purposes.<span  arial, helvetica, sans-serif;"></span></p> <p>&nbsp;</p> <p> </p><p> <u>Participation and withdrawal:</u>&nbsp;Your participation in this study is completely voluntary. You may withdraw at any time without penalty by simply closing or redirecting your browser\'s tab (no questions will be asked). You will still receive the promised monetary compensation and a detailed explanation of the study\'s aims and hypotheses.<span >The results of this research study may be presented at scientific or professional meetings or published in scientific journals.</span></p> <div> <p>&nbsp;</p> <p><span ><u>To Contact the Researcher:</u>&nbsp; If you have questions about this study, please contact Jordan Gunn (jgunn@princeton.edu).</span></p> </div> <p>&nbsp;</p> <p><span ><u>Agreement:</u> The purpose and nature of this research have been sufficiently explained and I agree to participate in this study. I understand that I am free to withdraw at any time without incurring any penalty.</span></p><p><br><span ></span></p><p><strong>Whom to contact about your rights in this research, for questions, concerns, suggestions, or complaints that are not being addressed by the researcher, or research-related harm.</strong></p> <p> Office of Research Integrity and Assurance, Human Research Protection Program, Assistant Director.&nbsp; Phone:&nbsp; (609) 258-0865.&nbsp; E-mail: irb@princeton.edu.</p> </div><div><u><em><span class="LabelWrapper"><span ><span  13px; "><br></span></span></span><em><span class="LabelWrapper"><span ><span  13px; "></span></span></span></em></em></u></div></div>'
+    };
+    timeline.push(consent);
+    
+    // Now first block.
+    var blocknumber = '1';
+    var isTest = true;
+    timeline.push(ins("<p>You will be presented with a series of trials on which you will see 6 pictures of objects on the screen and a single \"mystery\" word that refers to one of the objects presented. There will be 80 trials in each of 4 blocks, and over the course of the experiment you will be shown 16 different mystery words, each with a different meaning.&nbsp;</p><p>&nbsp;</p><p>Your job is to figure out what each mystery word means. Click on the object that you think the word may refer to. Make your best guess, and try to keep improving your guesses as the experiment continues. </p><p>Sometimes an image may not load correctly; this should happen only rarely, but even in case it does, make your best guess and try to keep improving your guesses as the experiment continues. Remember - if you do well enough, you'll receive a bonus payment!</p><p>&nbsp;</p><p>IMPORTANT FOR COMPENSATION: Please do not refresh or reload this page while the experiment is happening.</p><p><strong>Click here to continue.</strong></p>"));
+    timeline.push(seq0(blocknumber, isTest));
+    
+    // Now second block. Same as first.
+    var blocknumber = '2';
+    var isTest = true;
+    timeline.push(ins("<p>You've reached the end of the first block. There are three blocks to go! Here's the instructions again in case you've forgotten:</p><p>You will be presented with a series of trials on which you will see 6 pictures of objects on the screen and a single \"mystery\" word. There will be 80 trials in each of 4 blocks, and over the course of the experiment you will be shown 16 different mystery words, each with a different meaning.&nbsp;</p><p>&nbsp;</p><p>Your job is to figure out what each mystery word means. Click on one of the objects that you think the word might be referring to. Make your best guess, and try to keep improving your guesses as the experiment continues. Remember - if you do well enough, you'll receive a bonus payment!</p><p>&nbsp;</p><p><strong>Click here to continue.</strong></p>"));
+    timeline.push(seq0(blocknumber, isTest));
+    
+    // now third block. Start doing tests if haven't already.
+    var blocknumber = '3';
+    var isTest = true;
+    timeline.push(ins("<p>You've reached the end of the second block. There are two blocks to go! Starting with this block, you'll be prompted to click on the object you think the shown mystery word is referring to. Here's the instructions again in case you've forgotten:</p><p>You will be presented with a series of trials on which you will see 6 pictures of objects on the screen and a single \"mystery\" word. There will be 80 trials in each of 4 blocks, and over the course of the experiment you will be shown 16 different mystery words, each with a different meaning.&nbsp;</p><p>&nbsp;</p><p>Your job is to figure out what each mystery word means. Click on one of the objects that you think the word might be referring to. Make your best guess, and try to keep improving your guesses as the experiment continues. Remember - if you do well enough, you'll receive a bonus payment!</p><p>&nbsp;</p><p><strong>Click here to continue.</strong></p>"));
+    timeline.push(seq0(blocknumber, isTest));
+    
+    // now fourth block. Shift to secondary sequence.
+    var blocknumber = '4';
+    var isTest = true;
+    timeline.push(ins("<p>You've reached the end of the third block. There's one block to go! Just like last block, you'll be prompted to click on the object you think the shown mystery word is referring to. Here's the instructions again in case you've forgotten:</p><p>You will be presented with a series of trials on which you will see 6 pictures of objects on the screen and a single \"mystery\" word. There will be 80 trials in each of 4 blocks, and over the course of the experiment you will be shown 16 different mystery words, each with a different meaning.&nbsp;</p><p>&nbsp;</p><p>Your job is to figure out what each mystery word means. Click on one of the objects that you think the word might be referring to. Make your best guess, and try to keep improving your guesses as the experiment continues. Remember - if you do well enough, you'll receive a bonus payment!</p><p>&nbsp;</p><p><strong>Click here to continue.</strong></p>"));
+    timeline.push(seq1(blocknumber, isTest));
+    
+    // now fifth block. Same as fourth block.
+    var blocknumber = '5';
+    var isTest = true;
+    //timeline.push(ins("<p>You've reached the end of the fourth block. There's one blocks to go! Just like last block, you'll be prompted to click on the object you think the shown mystery word is referring to. Here's the instructions again in case you've forgotten:</p><p>You will be presented with a series of trials on which you will see 6 pictures of objects on the screen and a single \"mystery\" word. There will be 80 trials in each of 4 blocks, and over the course of the experiment you will be shown 16 different mystery words, each with a different meaning.&nbsp;</p><p>&nbsp;</p><p>Your job is to figure out what each mystery word means. Click on one of the objects that you think the word might be referring to. Make your best guess, and try to keep improving your guesses as the experiment continues. Remember - if you do well enough, you'll receive a bonus payment!</p><p>&nbsp;</p><p><strong>Click here to continue.</strong></p>"));
+    //timeline.push(seq1(blocknumber, isTest));
+    
+    // put all the trials together
+    jatos.onLoad(function() {
+      jsPsych.init({
+        timeline: timeline,
+        on_finish: function() {
+          var resultJson = JSON.stringify(jsPsych.data.getData());
+          jatos.submitResultData(resultJson, jatos.startNextComponent);
+        }});
+    });
+  </script>
+</html>
